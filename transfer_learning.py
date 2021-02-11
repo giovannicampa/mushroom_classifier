@@ -7,10 +7,10 @@ import urllib
 import math
 import datetime
 from shutil import copyfile
-
+from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
-from tensorflow.keras.optimizers import RMSprop
+from tensorflow.keras.optimizers import RMSprop, SGD
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LearningRateScheduler
@@ -19,7 +19,7 @@ import pathlib
 
 
 tf.config.experimental.set_visible_devices([], 'GPU') # Enforcing the usage of the CPU
-
+random.seed(42)
 
 # ---------------------------------------------------------------------------------------------------------
 # Prepare data
@@ -50,7 +50,7 @@ def split_data(SOURCE, TRAINING, TESTING, SPLIT_SIZE):
         copyfile(this_file, destination)
 
 
-mushroom_classes = ["boletus", "cantharellus", "amanita", "armillaria", "macrolepiota"]
+mushroom_classes = ["boletus", "cantharellus", "amanita", "macrolepiota"] # "armillaria",
 TRAINING_DIR = "./images/training/"
 TESTING_DIR = "./images/testing/"
 
@@ -96,7 +96,7 @@ validation_generator = validation_datagen.flow_from_directory(TESTING_DIR,
 # - Callbacks
 
 # Early stopping callback
-es_callback = EarlyStopping(monitor='val_loss', mode='min', patience=4, verbose=0, restore_best_weights= True)
+es_callback = EarlyStopping(monitor='val_loss', mode='min', patience=1, verbose=0, restore_best_weights= True)
 
 # Learning rate scheduler
 
@@ -140,8 +140,8 @@ pre_trained_model = InceptionV3(input_shape=(150, 150, 3),
 pre_trained_model.load_weights(weights_file)
 
 # freeze the layers
-# for layer in pre_trained_model.layers:
-#     layer.trainable = False
+for layer in pre_trained_model.layers:
+    layer.trainable = False
 
 
 last_layer = pre_trained_model.get_layer('mixed7')
@@ -151,7 +151,6 @@ last_output = last_layer.output
 
 x = tf.keras.layers.GlobalAveragePooling2D()(last_output)
 x = tf.keras.layers.Flatten()(x)
-x = tf.keras.layers.Dense(1024, activation="relu")(x)
 x = tf.keras.layers.Dense(512, activation="relu")(x)
 x = tf.keras.layers.Dense(128, activation="relu")(x)
 x = tf.keras.layers.Dense(len(mushroom_classes), activation="sigmoid", name="classification")(x)
@@ -164,7 +163,7 @@ model.compile(optimizer=RMSprop(lr=0.0001),
                 metrics = ['acc'])
 
 
-EPOCHS = 30
+EPOCHS = 20
 
 # train the model (adjust the number of epochs from 1 to improve performance)
 history = model.fit(
@@ -174,3 +173,50 @@ history = model.fit(
             verbose=1,
             callbacks= [tb_callback, lr_callback])
 
+
+fig, ax = plt.subplots()
+
+test_datagen = ImageDataGenerator(rescale=1./255)
+test_generator = test_datagen.flow_from_directory(
+        TESTING_DIR,
+        shuffle=False,
+        class_mode='categorical')
+
+Y_pred = model.predict_generator(test_generator, steps=len(test_generator))
+y_pred = np.argmax(Y_pred, axis=1)
+
+
+
+confusion_mat = confusion_matrix(y_true = test_generator.classes,
+                                y_pred = y_pred,
+                                normalize="true")
+
+im = ax.imshow(confusion_mat)
+
+
+ax.set_xticklabels(mushroom_classes)
+ax.set_yticklabels(mushroom_classes)
+
+# Rotate the tick labels and set their alignment.
+plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+        rotation_mode="anchor")
+
+for row in range(confusion_mat.shape[0]):
+    for col in range(confusion_mat.shape[1]):
+        text = ax.text(
+                x = col,
+                y = row,
+                s = f"{confusion_mat[row, col]:.2f}",
+                ha="center",
+                va="center",
+                color="w")
+
+
+ax.set_xticks(list(range(len(mushroom_classes))))
+ax.set_yticks(list(range(len(mushroom_classes))))
+
+ax.set_xlabel(f"Predicted label", fontsize = 18)
+ax.set_ylabel(f"True label", fontsize = 18)
+
+fig.tight_layout()
+plt.show()
