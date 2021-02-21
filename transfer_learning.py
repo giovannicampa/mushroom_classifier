@@ -10,7 +10,7 @@ from shutil import copyfile
 from sklearn.metrics import confusion_matrix
 
 import tensorflow as tf
-from tensorflow.keras.optimizers import RMSprop, SGD
+from tensorflow.keras.optimizers import RMSprop
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LearningRateScheduler
@@ -50,12 +50,12 @@ def split_data(SOURCE, TRAINING, TESTING, SPLIT_SIZE):
         copyfile(this_file, destination)
 
 
-mushroom_classes = ["boletus", "cantharellus", "amanita", "macrolepiota"] # "armillaria",
+mushroom_classes = ["amanita", "boletus", "cantharellus", "macrolepiota"] # "armillaria",
 TRAINING_DIR = "./images/training/"
 TESTING_DIR = "./images/testing/"
 
 
-split_size = .9
+split_size = .7
 
 if not(os.path.exists("./images/training/")):
 
@@ -96,10 +96,10 @@ validation_generator = validation_datagen.flow_from_directory(TESTING_DIR,
 # - Callbacks
 
 # Early stopping callback
-es_callback = EarlyStopping(monitor='val_loss', mode='min', patience=1, verbose=0, restore_best_weights= True)
+es_callback = EarlyStopping(monitor='val_loss', mode='min', patience=3, verbose=0, restore_best_weights= True)
+
 
 # Learning rate scheduler
-
 def generate_lr_scheduler(initial_learning_rate = 0.001):
 
     def lr_step_decay(epoch, lr):
@@ -109,9 +109,11 @@ def generate_lr_scheduler(initial_learning_rate = 0.001):
 
     return LearningRateScheduler(lr_step_decay)
 
-learning_rate = 0.001
+learning_rate = 0.0001
 lr_callback = generate_lr_scheduler(initial_learning_rate= learning_rate)
 
+
+# Tensorboard callback
 current_path = os.getcwd()
 now = datetime.datetime.now()
 dt_string = now.strftime("%d/%m/%Y %H:%M:%S").strip(" ").replace("/", "_").replace(":", "_").replace(" ", "_")
@@ -121,9 +123,7 @@ tb_callback = TensorBoard(log_dir = log_directory, profile_batch=0, histogram_fr
 
 
 
-
-
-# ---------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------------------
 # Defined model
 weights_file = "inception_v3.h5"
 
@@ -139,16 +139,18 @@ pre_trained_model = InceptionV3(input_shape=(150, 150, 3),
 # load pre-trained weights
 pre_trained_model.load_weights(weights_file)
 
-# freeze the layers
-for layer in pre_trained_model.layers:
-    layer.trainable = False
+# Decide whether to train also the feature extraction
+freeze_layers = False
+if freeze_layers == True:
+    for layer in pre_trained_model.layers:
+        layer.trainable = False
 
 
 last_layer = pre_trained_model.get_layer('mixed7')
 print('last layer output shape: ', last_layer.output_shape)
 last_output = last_layer.output
 
-
+# Define model
 x = tf.keras.layers.GlobalAveragePooling2D()(last_output)
 x = tf.keras.layers.Flatten()(x)
 x = tf.keras.layers.Dense(512, activation="relu")(x)
@@ -156,23 +158,28 @@ x = tf.keras.layers.Dense(128, activation="relu")(x)
 x = tf.keras.layers.Dense(len(mushroom_classes), activation="sigmoid", name="classification")(x)
 
 model = tf.keras.Model(inputs=pre_trained_model.input, outputs = x)
+model.summary()
 
-
-model.compile(optimizer=RMSprop(lr=0.0001), 
+model.compile(optimizer=RMSprop(lr=learning_rate), 
                 loss='categorical_crossentropy',
                 metrics = ['acc'])
 
 
-EPOCHS = 20
+EPOCHS = 10
 
-# train the model (adjust the number of epochs from 1 to improve performance)
 history = model.fit(
             train_generator,
             validation_data=validation_generator,
             epochs=EPOCHS,
             verbose=1,
-            callbacks= [tb_callback, lr_callback])
+            callbacks= [tb_callback, lr_callback, es_callback])
 
+
+model.save('saved_model/my_model' + dt_string)
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Model evaluation
 
 fig, ax = plt.subplots()
 
@@ -184,7 +191,6 @@ test_generator = test_datagen.flow_from_directory(
 
 Y_pred = model.predict_generator(test_generator, steps=len(test_generator))
 y_pred = np.argmax(Y_pred, axis=1)
-
 
 
 confusion_mat = confusion_matrix(y_true = test_generator.classes,
