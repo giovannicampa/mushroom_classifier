@@ -26,3 +26,6 @@
 *.code-workspace
 
 # End of https://www.toptal.com/developers/gitignore/api/linux,vscode
+/.vscode
+/images
+/tensorboard
