@@ -9,7 +9,31 @@ The data belongs to n different mushroom classes, namely _boletus, cantharellus,
 Among the downloaded pictures, the ones showing groups of the same mushroom have been deleted. 
 
 ## Training
-For the training the weights of the feature extractor part of the network have been frozen.
+Since this a transfer learning operation, it can be divided into feature extraction and classification.
+The feature extractor layers have been set as trainable, which improved overall accuracy but slowed down training.
 The classification part of the net consists of two Dense layers of 512 and 128 neurons respectively.
 
+The picture below shows the accuracy and loss of the training and test sets over the epochs. Thanks to the **early stopping** callback (patience of 3 epochs), the training was interrupted, thus preventing overfitting. The patience of 3 epochs let the training progress beyond the optimal point to check whether there could have been an improvement. The weights of the best epoch were then restored.
+
+<figure>
+  <img src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/tensorboard_log.png" width="700">
+  <figcaption>Tensorboard log of the training session</figcaption>
+</figure>
+
+
 ## Results
+
+### Classification accuracy
+Heatmap
+
+### Interpretability
+In order to correctly interpret the results, a interpretability analysis has been made. Bot the **class activation map**, as the **saliency map** have been calculated for pictures of each class.
+
+The results can be seen below. Blue areas indicate increased attention towards that feature (CAM) or pixel (saliency).
+
+| | |
+|:-------------------------:|:-------------------------:|
+|<img width="1604" alt="screen shot 2017-08-07 at 12 18 15 pm" src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/amanita.png">  |  <img width="1604" alt="screen shot 2017-08-07 at 12 18 15 pm" src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/boletus.png">|
+|<img width="1604" alt="screen shot 2017-08-07 at 12 18 15 pm" src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/cantharellus.png">  |  <img width="1604" alt="screen shot 2017-08-07 at 12 18 15 pm" src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/macrolepriota.png">|
+
+
