@@ -15,13 +15,17 @@ The classification part of the net consists of two Dense layers of 512 and 128 n
 
 The picture below shows the accuracy and loss of the training and test sets over the epochs. Thanks to the **early stopping** callback (patience of 3 epochs), the training was interrupted, thus preventing overfitting. The patience of 3 epochs let the training progress beyond the optimal point to check whether there could have been an improvement. The weights of the best epoch were then restored.
 
+<figure>
+  <img src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/tensorboard_log.png" width="600">
+  <figcaption>Tensorboard log of the training session</figcaption>
+</figure>
 
 
 ## Results
 The model achieves a validation accuracy of 98.4%. To understand how this is made up, the confusion matrix seen below has been generated.
 
 <figure>
-  <img src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/confusion_matrix.png" width="700">
+  <img src="https://github.com/giovannicampa/mushroom_classifier/blob/master/pictures/confusion_matrix.png" width="500">
   <figcaption>Tensorboard log of the training session</figcaption>
 </figure>
 
