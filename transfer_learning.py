@@ -18,7 +18,7 @@ from tensorflow.keras.callbacks import TensorBoard, EarlyStopping, LearningRateS
 import pathlib
 
 
-tf.config.experimental.set_visible_devices([], 'GPU') # Enforcing the usage of the CPU
+# tf.config.experimental.set_visible_devices([], 'GPU') # Enforcing the usage of the CPU
 random.seed(42)
 
 # ---------------------------------------------------------------------------------------------------------
@@ -81,15 +81,15 @@ train_datagen = ImageDataGenerator(rescale=1./255,
       fill_mode='nearest')
 
 train_generator = train_datagen.flow_from_directory(TRAINING_DIR,
-                                                    batch_size=50,
-                                                    target_size=(150, 150),
+                                                    batch_size=20,
+                                                    target_size=(299, 299),
                                                     class_mode='categorical')
 
 validation_datagen = ImageDataGenerator(rescale=1./255)
 validation_generator = validation_datagen.flow_from_directory(TESTING_DIR,
-                                                              batch_size=50,
+                                                              batch_size=20,
                                                               class_mode='categorical',
-                                                              target_size=(150, 150))
+                                                              target_size=(299, 299))
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ validation_generator = validation_datagen.flow_from_directory(TESTING_DIR,
 es_callback = EarlyStopping(monitor='val_loss', mode='min', patience=3, verbose=0, restore_best_weights= True)
 
 
-# Learning rate scheduler
+# Learning rate scheduler (not needed for RMSprop)
 def generate_lr_scheduler(initial_learning_rate = 0.001):
 
     def lr_step_decay(epoch, lr):
@@ -132,7 +132,7 @@ if not os.path.exists(weights_file):
     urllib.request.urlretrieve(weights_url, weights_file)
 
 # Instantiate the model
-pre_trained_model = InceptionV3(input_shape=(150, 150, 3),
+pre_trained_model = InceptionV3(input_shape=(299, 299, 3),
                                 include_top=False,
                                 weights=None)
 
@@ -155,7 +155,7 @@ x = tf.keras.layers.GlobalAveragePooling2D()(last_output)
 x = tf.keras.layers.Flatten()(x)
 x = tf.keras.layers.Dense(512, activation="relu")(x)
 x = tf.keras.layers.Dense(128, activation="relu")(x)
-x = tf.keras.layers.Dense(len(mushroom_classes), activation="sigmoid", name="classification")(x)
+x = tf.keras.layers.Dense(len(mushroom_classes), activation="softmax", name="classification")(x)
 
 model = tf.keras.Model(inputs=pre_trained_model.input, outputs = x)
 model.summary()
@@ -172,7 +172,7 @@ history = model.fit(
             validation_data=validation_generator,
             epochs=EPOCHS,
             verbose=1,
-            callbacks= [tb_callback, lr_callback, es_callback])
+            callbacks= [tb_callback, es_callback])
 
 
 model.save('saved_model/my_model' + dt_string)
